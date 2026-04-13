@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:ns0="http://www.itunes.apple.com/dtds/podcast-1.0.dtd" version="2.0" xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Morning FM — Monocle Briefing</title>
+    <link>https://novvave.github.io/morning-fm</link>
+    <description>Monocle Weekend Opener 칼럼의 핵심 인사이트를 매일 한국어로 브리핑합니다.</description>
+    <language>ko</language>
+    <generator>Morning FM Bot</generator>
+    <lastBuildDate>Mon, 13 Apr 2026 22:27:05 +0000</lastBuildDate>
+    <ns0:author>Morning FM Bot</ns0:author>
+    <ns0:summary>Monocle Weekend Opener 칼럼의 핵심 인사이트를 매일 한국어로 브리핑합니다.</ns0:summary>
+    <ns0:explicit>no</ns0:explicit>
+    <ns0:category>News</ns0:category>
+    <ns0:image href="https://novvave.github.io/morning-fm/cover.jpg" />
+    <item>
+      <title>[2026-04-13] Don’t wing it. Here’s how to behave on a plane</title>
+      <description>• 기내에서 발생하는 대부분의 갈등은 큰 사건보다 작은 에티켓 위반에서 비롯되며, 짐칸 독점·이착륙 중 통화·좌석 갑자기 젖히기 등 타인을 배려하지 않는 행동이 주요 원인이다.
+
+• 좌석 선택(창가 블라인드 조절권은 창가 승객에게, 가운데 자리 승객 없기를 바라며 양 끝 좌석 예약하는 행위 금지)과 소음 관리(헤드폰 착용, 음식 냄새 자제)는 좁은 공간을 공유하는 기내에서 반드시 지켜야 할 기본 예절이다.
+
+• 아기 울음·노인의 느린 이동 등 어쩔 수 없는 상황에는 관용을 베풀고, 하기(下機) 시 코트는 비행기에서 내린 후 입는 등 사소한 배려만으로도 모두의 비행 경험을 크게 개선할 수 있다.</description>
+      <pubDate>Mon, 13 Apr 2026 09:00:00 +0000</pubDate>
+      <guid isPermaLink="false">morning-fm-2026-04-13</guid>
+      <enclosure url="https://novvave.github.io/morning-fm/briefings/monocle_briefing_2026-04-13.mp3" length="1140236" type="audio/mpeg" />
+      <ns0:author>Morning FM Bot</ns0:author>
+      <ns0:duration>1:00</ns0:duration>
+      <ns0:summary>• 기내에서 발생하는 대부분의 갈등은 큰 사건보다 작은 에티켓 위반에서 비롯되며, 짐칸 독점·이착륙 중 통화·좌석 갑자기 젖히기 등 타인을 배려하지 않는 행동이 주요 원인이다.
+
+• 좌석 선택(창가 블라인드 조절권은 창가 승객에게, 가운데 자리 승객 없기를 바라며 양 끝 좌석 예약하는 행위 금지)과 소음 관리(헤드폰 착용, 음식 냄새 자제)는 좁은 공간을 공유하는 기내에서 반드시 지켜야 할 기본 예절이다.
+
+• 아기 울음·노인의 느린 이동 등 어쩔 수 없는 상황에는 관용을 베풀고, 하기(下機) 시 코트는 비행기에서 내린 후 입는 등 사소한 배려만으로도 모두의 비행 경험을 크게 개선할 수 있다.</ns0:summary>
+    </item>
+  </channel>
+</rss>
