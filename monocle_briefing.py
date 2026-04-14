@@ -6,6 +6,7 @@ Monocle Weekend Opener 브리핑 스크립트
 - ElevenLabs TTS로 브리핑 mp3 생성
 """
 
+import argparse
 import os
 import sys
 from datetime import datetime
@@ -17,6 +18,7 @@ from bs4 import BeautifulSoup
 import anthropic
 
 from generate_feed import generate_feed
+from gmail_reader import fetch_monocle_newsletter
 
 # ── 설정 ──────────────────────────────────────────────
 BASE_URL = "https://monocle.com"
@@ -230,12 +232,28 @@ def git_push():
 
 
 def main():
-    print("📡 Monocle Weekend Opener 최신 글 가져오는 중...")
-    title, url = fetch_latest_article_url()
-    print(f"   → {title}")
+    parser = argparse.ArgumentParser(description="Monocle Weekend Opener 브리핑")
+    parser.add_argument(
+        "--source",
+        choices=["web", "gmail"],
+        default="web",
+        help="콘텐츠 소스 선택: web(스크래핑) 또는 gmail(뉴스레터)",
+    )
+    args = parser.parse_args()
 
-    print("📄 아티클 스크래핑 중...")
-    article = scrape_article(url)
+    if args.source == "gmail":
+        print("📧 Gmail에서 Monocle 뉴스레터 가져오는 중...")
+        article = fetch_monocle_newsletter()
+        if not article:
+            sys.exit("Monocle 뉴스레터를 찾을 수 없습니다.")
+        print(f"   → {article['title']}")
+    else:
+        print("📡 Monocle Weekend Opener 최신 글 가져오는 중...")
+        title, url = fetch_latest_article_url()
+        print(f"   → {title}")
+
+        print("📄 아티클 스크래핑 중...")
+        article = scrape_article(url)
 
     print("🤖 Claude API로 한국어 요약 생성 중...")
     summary = summarize_with_claude(article)
