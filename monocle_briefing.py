@@ -6,19 +6,16 @@ Monocle Weekend Opener 브리핑 스크립트
 - ElevenLabs TTS로 브리핑 mp3 생성
 """
 
-import argparse
 import os
-import sys
 from datetime import datetime
 
-import subprocess
 
 import requests
 from bs4 import BeautifulSoup
 import anthropic
 
 from generate_feed import generate_feed
-from gmail_reader import fetch_monocle_newsletter
+
 
 # ── 설정 ──────────────────────────────────────────────
 BASE_URL = "https://monocle.com"
@@ -44,23 +41,15 @@ def fetch_latest_article_url() -> tuple[str, str]:
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # 첫 번째 아티클 링크 탐색
-    link = soup.select_one("a[href*='/the-weekend-opener/'][href$='/']")
-    if not link:
-        # fallback: 모든 링크 중 weekend-opener 하위 경로
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            if "/the-weekend-opener/" in href and href != "/the-weekend-opener/":
-                link = a
-                break
-
-    if not link:
-        sys.exit("최신 아티클을 찾을 수 없습니다.")
-
-    href = link["href"]
-    url = href if href.startswith("http") else BASE_URL + href
-    title = link.get_text(strip=True)
-    return title, url
+    from urllib.parse import urljoin, urlsplit
+    for link in soup.find_all("a", href=True):
+        url = urljoin(BASE_URL, link["href"])
+        parsed = urlsplit(url)
+        if (parsed.hostname == "monocle.com"
+                and parsed.path.startswith("/the-weekend-opener/")
+                and parsed.path.rstrip("/") != "/the-weekend-opener"):
+            return link.get_text(strip=True), url
+    raise RuntimeError("최신 아티클을 찾을 수 없습니다.")
 
 
 def scrape_article(url: str) -> dict:
@@ -86,7 +75,9 @@ def scrape_article(url: str) -> dict:
     # 본문 단락 — o-article__content 영역에서 추출
     paragraphs = []
     content_div = soup.find("div", class_="o-article__content")
-    container = content_div if content_div else soup.find("article") or soup
+    container = content_div if content_div else soup.find("article")
+    if container is None:
+        raise RuntimeError("Article container not found; refusing navigation text")
     for p in container.find_all("p"):
         text = p.get_text(strip=True)
         if len(text) > 30:  # 짧은 메타 텍스트 제외
@@ -99,7 +90,7 @@ def scrape_article(url: str) -> dict:
 
 def summarize_with_claude(article: dict) -> str:
     """Claude API로 핵심 인사이트 3줄 한국어 요약을 생성한다."""
-    client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수 사용
+    client = anthropic.Anthropic(max_retries=0, timeout=60)  # ANTHROPIC_API_KEY 환경변수 사용
 
     prompt = f"""다음은 Monocle 매거진 'The Weekend Opener' 칼럼입니다.
 
@@ -114,7 +105,7 @@ def summarize_with_claude(article: dict) -> str:
 각 줄은 '•' 로 시작하고, 독자가 칼럼을 읽지 않아도 핵심을 파악할 수 있도록 구체적으로 작성해주세요."""
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -124,7 +115,7 @@ def summarize_with_claude(article: dict) -> str:
 def save_briefing(article: dict, summary: str) -> str:
     """브리핑 결과를 텍스트 파일로 저장한다."""
     today = datetime.now().strftime("%Y-%m-%d")
-    filename = f"monocle_briefing_{today}.txt"
+    filename = article.get("filename", f"monocle_briefing_{today}") + ".txt"
     filepath = os.path.join(OUTPUT_DIR, filename)
 
     divider = "─" * 52
@@ -174,7 +165,7 @@ def generate_tts(article: dict, summary: str) -> str:
         return ""
 
     today = datetime.now().strftime("%Y-%m-%d")
-    mp3_path = os.path.join(OUTPUT_DIR, f"monocle_briefing_{today}.mp3")
+    mp3_path = os.path.join(OUTPUT_DIR, article.get("filename", f"monocle_briefing_{today}") + ".mp3")
 
     # 음성용 스크립트 구성 — 자연스러운 읽기를 위해 포맷 조정
     tts_text = (
@@ -204,79 +195,19 @@ def generate_tts(article: dict, summary: str) -> str:
     )
     resp.raise_for_status()
 
-    with open(mp3_path, "wb") as f:
+    if not resp.content or not (resp.content.startswith(b"ID3") or
+            (len(resp.content) > 1 and resp.content[0] == 255 and resp.content[1] & 224 == 224)):
+        raise RuntimeError("ElevenLabs returned invalid MP3 audio")
+    with open(mp3_path + ".tmp", "wb") as f:
         f.write(resp.content)
+    os.replace(mp3_path + ".tmp", mp3_path)
 
     return mp3_path
 
 
-def git_push():
-    """변경사항을 Git에 커밋하고 push한다."""
-    repo_dir = os.path.dirname(os.path.abspath(__file__))
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    def run(cmd):
-        return subprocess.run(
-            cmd, cwd=repo_dir, capture_output=True, text=True
-        )
-
-    run(["git", "add", "-A"])
-    run(["git", "commit", "-m", f"briefing: {today}"])
-    result = run(["git", "push"])
-
-    if result.returncode == 0:
-        return True
-    else:
-        print(f"⚠️  git push 실패: {result.stderr.strip()}")
-        return False
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Monocle Weekend Opener 브리핑")
-    parser.add_argument(
-        "--source",
-        choices=["web", "gmail"],
-        default="web",
-        help="콘텐츠 소스 선택: web(스크래핑) 또는 gmail(뉴스레터)",
-    )
-    args = parser.parse_args()
-
-    if args.source == "gmail":
-        print("📧 Gmail에서 Monocle 뉴스레터 가져오는 중...")
-        article = fetch_monocle_newsletter()
-        if not article:
-            sys.exit("Monocle 뉴스레터를 찾을 수 없습니다.")
-        print(f"   → {article['title']}")
-    else:
-        print("📡 Monocle Weekend Opener 최신 글 가져오는 중...")
-        title, url = fetch_latest_article_url()
-        print(f"   → {title}")
-
-        print("📄 아티클 스크래핑 중...")
-        article = scrape_article(url)
-
-    print("🤖 Claude API로 한국어 요약 생성 중...")
-    summary = summarize_with_claude(article)
-
-    print("💾 브리핑 파일 저장 중...")
-    filepath = save_briefing(article, summary)
-    print(f"   → {filepath}")
-
-    print("🔊 ElevenLabs TTS로 음성 생성 중...")
-    mp3_path = generate_tts(article, summary)
-    if mp3_path:
-        print(f"   → {mp3_path}")
-
-    print("📋 RSS feed.xml 업데이트 중...")
-    feed_path = generate_feed()
-    print(f"   → {feed_path}")
-
-    print("🚀 GitHub에 push 중...")
-    if git_push():
-        print("   → push 완료!")
-
-    print(f"\n✅ 완료!\n")
-    print(summary)
+    from publish_briefing import main as publish_main
+    publish_main()
 
 
 if __name__ == "__main__":

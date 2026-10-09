@@ -3,3 +3,6 @@ __pycache__/
 .DS_Store
 credentials.json
 token.json
+.env
+.env.*
+*.tmp

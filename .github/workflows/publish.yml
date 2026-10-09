@@ -1,0 +1,68 @@
+name: Morning FM publish
+on:
+  schedule:
+    - cron: '17 23 * * *' # 08:17 KST/JST; checks newest article only
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: morning-fm-publisher
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && vars.MORNING_FM_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - name: Configure checkpoint author
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Publish at most one new episode
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: python publish_briefing.py --push
+      - name: Failure summary
+        if: failure()
+        run: echo 'Publication failed. Inspect the failed step and publication_state.json. Do not reset pending API stages without checking provider usage.' >> "$GITHUB_STEP_SUMMARY"
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+      - name: Prepare public podcast files only
+        run: |
+          mkdir -p public/briefings
+          cp feed.xml public/
+          cp briefings/*.mp3 public/briefings/
+          if [ -f cover.jpg ]; then cp cover.jpg public/; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy podcast
+        id: deployment
+        uses: actions/deploy-pages@v4
