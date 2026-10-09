@@ -125,7 +125,7 @@ def generate_feed() -> str:
         SubElement(item, "description").text = ep["summary"] or ep["title"]
         SubElement(item, "pubDate").text = format_datetime(ep["pub_date"])
         SubElement(item, "guid", isPermaLink="false").text = (
-            f"morning-fm-{ep['date_str']}"
+            f"morning-fm-{ep['filename'].removeprefix('monocle_briefing_').removesuffix('.mp3')}"
         )
 
         enclosure = SubElement(item, "enclosure")
